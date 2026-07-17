@@ -1,23 +1,4 @@
 services:
-  trino:
-    image: trinodb/trino:482
-    container_name: trino
-    networks:
-      - finstream-net
-    ports:
-      - 8080:8080
-    volumes:
-      - ./trino/catalog:/etc/trino/catalog
-      - ./trino/plugin/paimon:/usr/lib/trino/plugin/paimon
-    environment:
-      - TRINO_USER=admin
-      - JAVA_TOOL_OPTIONS=-Xmx4G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/info"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   broker:
     image: apache/kafka:4.3.1
     container_name: broker
