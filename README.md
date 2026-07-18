@@ -287,19 +287,32 @@ http://localhost:8081
 
 ---
 
-# 🧪 Executar Pipeline
+# 🧪 Execução do Pipeline
 
-## Producer
+Após iniciar a infraestrutura com:
+
+```bash
+docker compose up -d
+```
+
+o pipeline é iniciado automaticamente pelos containers, incluindo:
+
+- **Producer**: gera continuamente transações financeiras simuladas.
+- **Processor (PyFlink)**: consome os eventos do Kafka, aplica as regras de detecção de fraude e grava os resultados no Apache Paimon.
+
+Não é necessário executar manualmente:
 
 ```bash
 uv run producers/generate_transactions.py
 ```
 
-## Processor
+ou
 
 ```bash
 uv run processors/fraud_detection.py
 ```
+
+Esses processos já fazem parte da infraestrutura definida no `docker-compose.yaml`.
 
 ---
 
