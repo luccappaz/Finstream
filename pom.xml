@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+           http://maven.apache.org/POM/4.0.0
+           https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>io.finstream</groupId>
+    <artifactId>flink-runtime</artifactId>
+    <version>1.0.0</version>
+
+    <packaging>pom</packaging>
+
+
+    <properties>
+
+        <paimon.version>1.4.2</paimon.version>
+
+        <flink.kafka.connector.version>5.0.0-2.2</flink.kafka.connector.version>
+
+        <hadoop.version>3.3.6</hadoop.version>
+
+        <maven.dependency.plugin.version>3.8.1</maven.dependency.plugin.version>
+
+    </properties>
+
+
+    <dependencies>
+
+        <!-- Paimon catalog + runtime para Flink 2.2 -->
+        <dependency>
+            <groupId>org.apache.paimon</groupId>
+            <artifactId>paimon-flink-2.2</artifactId>
+            <version>${paimon.version}</version>
+        </dependency>
+
+
+        <!-- Paimon S3 / MinIO -->
+        <dependency>
+            <groupId>org.apache.paimon</groupId>
+            <artifactId>paimon-s3</artifactId>
+            <version>${paimon.version}</version>
+        </dependency>
+
+
+        <!-- Kafka SQL Connector -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-sql-connector-kafka</artifactId>
+            <version>${flink.kafka.connector.version}</version>
+        </dependency>
+
+        <!-- Dependências do Hadoop -->
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-api</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
+
+    </dependencies>
+
+
+    <build>
+
+        <plugins>
+
+            <plugin>
+
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${maven.dependency.plugin.version}</version>
+
+
+                <executions>
+
+                    <execution>
+
+                        <id>copy-flink-connectors</id>
+
+                        <phase>package</phase>
+
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+
+
+                        <configuration>
+
+                            <includeScope>runtime</includeScope>
+
+                            <outputDirectory>
+                                ${project.build.directory}/flink-lib
+                            </outputDirectory>
+
+                            <!-- evita nomes duplicados -->
+                            <useRepositoryLayout>false</useRepositoryLayout>
+
+                        </configuration>
+
+                    </execution>
+
+                </executions>
+
+            </plugin>
+
+        </plugins>
+
+    </build>
+
+</project>

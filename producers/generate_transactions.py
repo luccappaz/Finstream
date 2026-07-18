@@ -1,11 +1,25 @@
 import json
+import signal
 import time
 import random
 from datetime import datetime, timezone
 from confluent_kafka import Producer
 
-conf = {"bootstrap.servers": "localhost:9092", "client.id": "finstream-producer"}
+conf = {"bootstrap.servers": "broker:9092", "client.id": "finstream-producer"}
 producer = Producer(conf)
+
+running = True
+
+
+def handle_shutdown_signal(signum, frame):
+    """Callback disparado quando o Docker ou o utilizador pedem para parar."""
+    global running
+    print(f"\n🛑 Sinal de paragem ({signum}) recebido! A encerrar o loop...")
+    running = False
+
+
+signal.signal(signal.SIGINT, handle_shutdown_signal)
+signal.signal(signal.SIGTERM, handle_shutdown_signal)
 
 
 def delivery_report(err, _):
@@ -18,7 +32,7 @@ def main():
     print("Press Ctrl + c to stop the execution.\n")
 
     try:
-        while True:
+        while running:
             ts_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
             amount = round(random.uniform(10.0, 15000.0), 2)
@@ -44,8 +58,6 @@ def main():
 
             time.sleep(0.5)
 
-    except KeyboardInterrupt:
-        print("\n🛑 Execution stopped by user.")
     finally:
         print("Awaiting for the last messages to be received...")
         producer.flush()

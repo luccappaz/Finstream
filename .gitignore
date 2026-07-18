@@ -5,9 +5,8 @@ build/
 dist/
 wheels/
 *.egg-info
-jars/
+target/
 minio_data/
-trino/plugin/
 
 # Virtual environments
 .venv
