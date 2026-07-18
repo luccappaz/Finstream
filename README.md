@@ -2,135 +2,410 @@
 
 **Pipeline de Processamento de Dados Financeiros em Tempo Real com arquitetura Lakehouse.**
 
-O **Finstream** é uma plataforma de engenharia de dados desenhada para a ingestão, processamento e detecção de fraudes em transações financeiras sob o paradigma de _streaming_. O ecossistema combina a baixa latência do processamento em tempo real com os benefícios analíticos de um Data Lakehouse moderno, permitindo consultas históricas complexas e auditoria via **time travel**.
+O **Finstream** é uma plataforma de engenharia de dados desenvolvida para ingestão, processamento e detecção de fraudes em transações financeiras utilizando arquitetura baseada em **stream processing**.
+
+O projeto combina:
+
+- baixa latência de processamento distribuído em tempo real;
+- armazenamento transacional de um Data Lakehouse;
+- versionamento e auditoria através de snapshots históricos.
+
+A solução utiliza **Apache Flink** como motor de processamento, **Apache Paimon** como formato de tabela Lakehouse e **MinIO** como camada de armazenamento de objetos compatível com S3.
 
 ---
 
 # 🏗️ Arquitetura do Sistema
 
-A arquitetura desacopla completamente as camadas de ingestão, computação distribuída, metadados e consulta SQL.
+A arquitetura desacopla completamente as camadas de ingestão, processamento, armazenamento e consulta SQL.
 
 ```mermaid
 graph LR
-    A[Apache Kafka] -->|Event Streaming| B[PyFlink / Apache Flink]
-    B -->|Streaming ETL & Sink| C[(Apache Paimon / MinIO)]
-    C -->|Metadados & Parquet| D[Trino Query Engine]
-    D -->|SQL ANSI| E[Camada Analítica / Superset / Grafana]
+
+    A[Transaction Producer] -->|Events| B[Apache Kafka]
+
+    B -->|Streaming Source| C[Apache Flink]
+
+    C -->|Streaming ETL| D[Apache Paimon]
+
+    D -->|Tables + Metadata| E[MinIO S3 Storage]
+
+    C -->|SQL Analysis| F[Flink SQL Client]
 ```
 
 ---
 
 # ✨ Funcionalidades
 
-- **Processamento Stream End-to-End**
-  - Ingestão contínua de eventos de transações financeiras simuladas via Apache Kafka.
+## ⚡ Processamento Streaming End-to-End
 
-- **Detecção de Fraude em Tempo Real**
-  - Mecanismo de avaliação instantânea (_Streaming ETL_) implementado em PyFlink para classificar transações como `APPROVED` ou `FRAUD_SUSPECT` com base em regras de negócio dinâmicas.
+- Geração de transações financeiras simuladas.
+- Publicação contínua de eventos através do Apache Kafka.
+- Processamento distribuído utilizando Apache Flink.
 
-- **Arquitetura Lakehouse Resiliente**
-  - Armazenamento ACID utilizando Apache Paimon sobre S3 (MinIO Object Storage), formatado em arquivos Parquet compactados com Zstd.
+---
 
-- **Versionamento e Time Travel**
-  - Capacidade nativa do Paimon para inspecionar snapshots históricos do estado da tabela a cada ciclo de checkpoint (60s).
+## 🔍 Detecção de Fraude em Tempo Real
 
-- **Query Engine Distribuído**
-  - Camada de serviço de dados alimentada pelo Trino, permitindo `JOIN`s, agregações e análises _ad hoc_ diretamente sobre as tabelas do Lakehouse sem impacto no pipeline de escrita.
+O pipeline executa regras de negócio durante o processamento dos eventos.
+
+As transações são classificadas como:
+
+```
+APPROVED
+FRAUD_SUSPECT
+```
+
+O mecanismo permite evoluir para:
+
+- regras temporais;
+- análise comportamental;
+- Complex Event Processing (CEP);
+- integração com modelos de Machine Learning.
+
+---
+
+## 🏞️ Arquitetura Lakehouse
+
+Os dados processados são armazenados utilizando Apache Paimon.
+
+Características:
+
+- tabelas transacionais;
+- consistência ACID;
+- snapshots históricos;
+- compactação de arquivos;
+- armazenamento baseado em objetos.
+
+Arquitetura:
+
+```
+Apache Paimon
+       |
+       v
+     MinIO
+       |
+       v
+      S3 API
+```
+
+---
+
+## 🕒 Time Travel e Auditoria
+
+O Apache Paimon mantém histórico de alterações através de snapshots.
+
+Isso permite:
+
+- consultar estados anteriores;
+- auditar alterações;
+- recuperar versões específicas;
+- acompanhar evolução das tabelas.
 
 ---
 
 # 🛠️ Stack Tecnológica
 
-| Categoria                         | Tecnologia                                            |
-| --------------------------------- | ----------------------------------------------------- |
-| **Linguagem Core**                | Python 3.12+ (Ambiente isolado e gerenciado via `uv`) |
-| **Motor de Processamento**        | PyFlink / Apache Flink                                |
-| **Formato de Tabela (Lakehouse)** | Apache Paimon                                         |
-| **Armazenamento de Objetos**      | MinIO (Compatível com S3)                             |
-| **Motor de Consulta SQL**         | Trino (Trino Query Engine)                            |
-| **Message Broker**                | Apache Kafka                                          |
-| **Orquestração Local**            | Docker Compose                                        |
+| Categoria               | Tecnologia                 |
+| ----------------------- | -------------------------- |
+| Linguagem               | Python 3.12+               |
+| Gerenciamento Python    | uv                         |
+| Processamento Streaming | Apache Flink 2.2 / PyFlink |
+| Formato Lakehouse       | Apache Paimon 1.4.2        |
+| Object Storage          | MinIO                      |
+| Message Broker          | Apache Kafka 4.3.1         |
+| SQL Engine              | Flink SQL Client           |
+| Gerenciamento JVM       | Maven                      |
+| Containerização         | Docker                     |
+| Orquestração            | Docker Compose             |
 
 ---
 
-# 🚀 Como Executar o Ambiente
+# 📦 Gerenciamento de Dependências Flink
+
+As bibliotecas do ecossistema Flink são gerenciadas através do Maven.
+
+O projeto não mantém uma pasta de JARs manualmente. O arquivo:
+
+```
+pom.xml
+```
+
+é responsável por definir os conectores e bibliotecas necessárias.
+
+Principais dependências:
+
+- Apache Paimon para Flink 2.2;
+- Paimon S3 para integração com MinIO;
+- Kafka SQL Connector;
+- dependências transitivas Hadoop e AWS SDK.
+
+Exemplo:
+
+```xml
+<dependency>
+    <groupId>org.apache.paimon</groupId>
+    <artifactId>paimon-flink-2.2</artifactId>
+    <version>1.4.2</version>
+</dependency>
+```
+
+Durante o build:
+
+```bash
+mvn package
+```
+
+o Maven resolve automaticamente as dependências e gera:
+
+```
+target/flink-lib/
+```
+
+Essa pasta contém as bibliotecas utilizadas para construir a imagem personalizada do Flink.
+
+---
+
+# 📁 Estrutura do Projeto
+
+```
+finstream/
+
+├── processors/
+│   └── fraud_detection.py
+│
+├── producers/
+│   └── generate_transactions.py
+│
+├── pom.xml
+│
+├── docker/flink/Dockerfile
+│
+├── docker-compose.yaml
+│
+├── Makefile
+│
+└── target/
+    └── flink-lib/
+```
+
+---
+
+# 🚀 Executando o Ambiente
 
 ## Pré-requisitos
 
-- Docker e Docker Compose instalados.
-- Ferramenta `uv` para gerenciamento de dependências Python.
-- Ficheiros JAR dos conectores necessários localizados na pasta `jars/`.
+Instale:
 
-## 1. Clonar o repositório
+- Docker;
+- Docker Compose;
+- Java 21+;
+- Maven 3.9+;
+- Python 3.12+;
+- uv.
+
+---
+
+# ⚙️ Build Completo
+
+O projeto utiliza um `Makefile` para automatizar o fluxo completo.
+
+Executar:
 
 ```bash
-git clone https://codeberg.org/seu-usuario/finstream.git
-cd finstream
+make
 ```
 
-## 2. Subir os containers da stack
+ou:
 
 ```bash
-docker compose up -d
+make all
 ```
 
-## 3. Iniciar o Job de Streaming (PyFlink)
+Fluxo:
+
+```
+Maven
+  |
+  v
+Dependências Flink
+  |
+  v
+Docker Image
+  |
+  v
+Docker Compose
+```
+
+---
+
+# 🔨 Build Maven
+
+Gerar as bibliotecas do runtime:
+
+```bash
+make build-mvn
+```
+
+Resultado:
+
+```
+target/flink-lib/
+```
+
+---
+
+# 🐳 Build Docker
+
+Construir a imagem personalizada:
+
+```bash
+make build-docker
+```
+
+---
+
+# 🚀 Subir Infraestrutura
+
+```bash
+make up
+```
+
+Serviços iniciados:
+
+- Apache Kafka;
+- Flink JobManager;
+- Flink TaskManager;
+- Flink SQL Client;
+- MinIO;
+- Prometheus.
+
+Web UI do Flink:
+
+```
+http://localhost:8081
+```
+
+---
+
+# 🧪 Executar Pipeline
+
+## Producer
+
+```bash
+uv run producers/generate_transactions.py
+```
+
+## Processor
 
 ```bash
 uv run processors/fraud_detection.py
 ```
 
-## 4. Inspecionar snapshots e dados processados
-
-```bash
-uv run inspect_paimon.py
-```
-
 ---
 
-# 📊 Integração com Trino Analytics
+# SQL Client
 
-O catálogo do Paimon é exposto nativamente para o Trino através do mapeamento de volumes configurado em:
-
-- `./trino/etc`
-- `./trino/plugin/paimon/`
-
-## Acessando a CLI do Trino
+Acessar o SQL Client:
 
 ```bash
-docker exec -it trino trino
+docker exec -it flink-sql-client \
+/opt/flink/bin/sql-client.sh
 ```
 
-Dentro da CLI, execute:
+Criar catálogo Paimon:
 
 ```sql
-SHOW CATALOGS;
-
-USE paimon;
-
-SHOW TABLES IN default;
-
-SELECT *
-FROM default.processed_transactions$snapshots;
+CREATE CATALOG IF NOT EXISTS paimon_catalog WITH (
+    'type' = 'paimon',
+    'warehouse' = 's3://warehouse/paimon',
+    's3.endpoint' = 'http://minio:9000',
+    's3.path-style-access' = 'true',
+    's3.access-key' = 'admin',
+    's3.secret-key' = 'password',
+    's3.region' = 'us-east-1'
+);
 ```
 
-Qualquer ferramenta compatível com **JDBC/ODBC** (como **Apache Superset** ou **Grafana**) pode se conectar utilizando:
+Selecionar catálogo:
 
-- **Endpoint:** `http://localhost:8080`
-- **Catálogo:** `paimon`
+```sql
+USE CATALOG paimon_catalog;
+```
+
+Listar tabelas:
+
+```sql
+SHOW TABLES;
+```
+
+Consultar dados:
+
+```sql
+SELECT *
+FROM processed_transactions;
+```
 
 ---
 
-# 🛣️ Roadmap de Evolução
+# 📊 Operação via Makefile
 
-- [ ] Acoplamento do Apache Superset para dashboards executivos de volumetria de fraude.
-- [ ] Implementação de Complex Event Processing (CEP) no Flink para identificar fraudes por padrões comportamentais (ex.: múltiplas tentativas em janelas deslizantes de 5 minutos).
-- [ ] Implementação de _sinks_ secundários para mensageria instantânea (alertas via Webhook no Discord/Telegram).
+## Status dos serviços
+
+```bash
+make ps
+```
+
+## Logs gerais
+
+```bash
+make logs
+```
+
+## Logs SQL Client
+
+```bash
+make logs-sql
+```
+
+## Listar Jobs Flink
+
+```bash
+make flink-list
+```
+
+## Parar serviços
+
+```bash
+make stop
+```
+
+## Derrubar containers
+
+```bash
+make down
+```
+
+## Recriar ambiente
+
+```bash
+make reset
+```
+
+---
+
+# 🛣️ Roadmap
+
+- [ ] Dashboards executivos utilizando Apache Superset.
+- [ ] Implementação de Complex Event Processing (CEP).
+- [ ] Integração com modelos de Machine Learning.
+- [ ] Alertas em tempo real via Webhook.
+- [ ] Deploy em Kubernetes utilizando Flink Kubernetes Operator.
+- [ ] Pipeline CI/CD para publicação automática da imagem Flink.
 
 ---
 
 # 🛡️ Licença
 
-Este projeto está sob a licença **MIT**.
+Este projeto está licenciado sob MIT License.
 
 Consulte o arquivo `LICENSE` para mais detalhes.
