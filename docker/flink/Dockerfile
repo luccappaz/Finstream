@@ -3,6 +3,9 @@ FROM apache/flink:2.2-java21
 # JARs existentes (Paimon, Kafka connector, etc.)
 COPY target/flink-lib/*.jar /opt/flink/lib/
 
+RUN mkdir -p /opt/flink/plugins/s3-fs-hadoop && \
+    cp /opt/flink/opt/flink-s3-fs-hadoop-*.jar /opt/flink/plugins/s3-fs-hadoop/
+
 # Instala Python e PyFlink
 USER root
 

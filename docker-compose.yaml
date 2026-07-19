@@ -1,4 +1,54 @@
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    environment:
+      OLLAMA_NUM_PARALLEL: "4"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    networks:
+      - finstream-net
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: ollama-pull
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint:
+      - "/bin/sh"
+      - "-c"
+      - |
+        until OLLAMA_HOST=ollama:11434 ollama pull ${OLLAMA_MODEL}; do
+          echo "Aguardando Ollama ficar pronto na rede..."
+          sleep 2
+        done
+    networks:
+      - finstream-net
+  paimon-python:
+    image: python:3.12-slim
+    container_name: paimon-python
+    working_dir: /app
+    volumes:
+      - ./duckdb:/app
+    ports:
+      - "8888:8888"
+    command: >
+      sh -c "pip install pypaimon jupyterlab --break-system-packages --quiet &&
+             jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token=''"
+    networks:
+      - finstream-net
+    restart: unless-stopped
+
   paimon-sink-submitter:
     build:
       context: ./
@@ -19,6 +69,10 @@ services:
         rest.port: 8081
         table.catalog-store.kind: file
         table.catalog-store.file.path: s3://warehouse/catalog-store/
+        s3.endpoint: http://minio:9000
+        s3.access-key: admin
+        s3.secret-key: password
+        s3.path.style.access: true
     volumes:
       - ./sql:/opt/flink/jobs
     command:
@@ -41,42 +95,6 @@ services:
     depends_on:
       broker:
         condition: service_healthy
-    networks:
-      - finstream-net
-
-  ollama:
-    image: ollama/ollama:latest
-    container_name: ollama
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-    environment:
-      OLLAMA_NUM_PARALLEL: "4" # quantas requisições processa de verdade em paralelo
-      OLLAMA_MAX_LOADED_MODELS: "1"
-    networks:
-      - finstream-net
-
-  ollama-pull:
-    image: ollama/ollama:latest
-    container_name: ollama-pull
-    depends_on:
-      ollama:
-        condition: service_healthy
-    entrypoint:
-      - "/bin/sh"
-      - "-c"
-      - |
-        until OLLAMA_HOST=ollama:11434 ollama pull llama3.2:1b-instruct-fp16; do
-          echo "Aguardando Ollama ficar pronto na rede..."
-          sleep 2
-        done
     networks:
       - finstream-net
 
@@ -108,6 +126,7 @@ services:
     restart: unless-stopped
     networks:
       - finstream-net
+
   kafka-topic-init:
     image: apache/kafka:4.3.1
     container_name: kafka-topic-init
@@ -172,10 +191,12 @@ services:
         condition: service_healthy
       broker:
         condition: service_healthy
-      ollama-pull:
-        condition: service_completed_successfully
       kafka-topic-init:
         condition: service_completed_successfully
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
     volumes:
       - ./processors:/opt/flink/jobs
     command: >
@@ -236,7 +257,6 @@ services:
       - finstream-net
     command: >
       /opt/flink/bin/sql-client.sh
-      -i /opt/flink/jobs/init_catalog.sql
     tty: true
     stdin_open: true
 
@@ -253,6 +273,7 @@ services:
     volumes:
       - ./processors:/opt/flink/jobs
     environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
       FLINK_PROPERTIES: |
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 4

@@ -23,6 +23,8 @@
 
         <hadoop.version>3.3.6</hadoop.version>
 
+        <!-- <flink.s3.hadoop.version>2.2.0</flink.s3.hadoop.version> -->
+
         <maven.dependency.plugin.version>3.8.1</maven.dependency.plugin.version>
 
     </properties>
@@ -60,6 +62,13 @@
             <artifactId>flink-sql-connector-kafka</artifactId>
             <version>${flink.kafka.connector.version}</version>
         </dependency>
+
+        <!-- Flink S3 Connector -->
+        <!-- <dependency> -->
+        <!--     <groupId>org.apache.flink</groupId> -->
+        <!--     <artifactId>flink-s3-fs-hadoop</artifactId> -->
+        <!--     <version>${flink.s3.hadoop.version}</version> -->
+        <!-- </dependency> -->
 
         <!-- Dependências do Hadoop -->
         <dependency>

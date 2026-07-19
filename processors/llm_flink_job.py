@@ -1,3 +1,4 @@
+import os
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 import asyncio
@@ -14,6 +15,7 @@ from pyflink.common.watermark_strategy import WatermarkStrategy
 from pyflink.datastream.functions import AsyncFunction
 
 OLLAMA_URL = "http://ollama:11434/api/generate"
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL")
 PREDICOES_VALIDAS = {1, 2}
 
 
@@ -39,7 +41,7 @@ Exemplo 2:
 Perfil: {{"status_conta_corrente": "< 0 DM (Saldo Negativo)", "duracao_credito_meses": 48, "historico_credito": "Atrasos passados", "proposito_emprestimo": "Carro novo", "valor_credito_solicitado": 9500}}
 Resposta: {{"predicao": 2, "justificativa": "Saldo negativo, atrasos passados e valor alto em prazo longo indicam alto risco."}}
 
-Agora avalie o perfil abaixo. Responda APENAS em JSON com os campos "predicao" (1 ou 2) e "justificativa":
+Agora avalie o perfil abaixo. Responda APENAS in JSON com os campos "predicao" (1 ou 2) e "justificativa":
 Perfil: {perfil_json}"""
 
 
@@ -50,6 +52,7 @@ class AvaliarCreditoAsync(AsyncFunction):
 
     def open(self, runtime_context):
         self.session = None
+        self.model_name = os.environ.get("OLLAMA_MODEL")
 
     async def _get_session(self):
         if self.session is None:
@@ -69,7 +72,7 @@ class AvaliarCreditoAsync(AsyncFunction):
             async with session.post(
                 OLLAMA_URL,
                 json={
-                    "model": "llama3.2:1b-instruct-fp16",
+                    "model": self.model_name,
                     "prompt": montar_prompt(perfil_json),
                     "format": "json",
                     "stream": False,
@@ -89,13 +92,14 @@ class AvaliarCreditoAsync(AsyncFunction):
 
         except Exception as e:
             predicao = 0
-            justificativa = f"erro: {e}"
+            justificativa = f"erro: {type(e).__name__} - {e}"
 
         saida = {
             "id_cliente": id_cliente,
             "target_real": target_real,
             "predicao": predicao,
             "justificativa": justificativa,
+            "modelo": self.model_name,
         }
         return [json.dumps(saida, ensure_ascii=False)]
 
@@ -107,8 +111,6 @@ class AvaliarCreditoAsync(AsyncFunction):
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
             if loop.is_running():
-                # loop já ativo (comum durante shutdown do Flink) —
-                # agenda o fechamento sem bloquear
                 asyncio.ensure_future(self.session.close())
             else:
                 loop.run_until_complete(self.session.close())
@@ -146,8 +148,8 @@ def main():
     scored = AsyncDataStream.unordered_wait(
         ds,
         AvaliarCreditoAsync(),
-        timeout=Time.seconds(60),
-        capacity=4,
+        timeout=Time.seconds(120),
+        capacity=1,
         output_type=Types.STRING(),
     )
 

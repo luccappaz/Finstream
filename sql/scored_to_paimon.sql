@@ -24,6 +24,6 @@ CREATE TABLE IF NOT EXISTS credit_scored_paimon (
 ) WITH (
   'connector' = 'paimon'
 );
-
+SET 'execution.checkpointing.interval' = '10s';
 INSERT INTO credit_scored_paimon
 SELECT * FROM credit_scored_kafka;
