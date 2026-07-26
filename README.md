@@ -1,5 +1,15 @@
 # Finstream 🚀
 
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Apache Flink](https://img.shields.io/badge/Apache%20Flink-2.2-E6526F?logo=apacheflink&logoColor=white)](https://flink.apache.org/)
+[![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-4.3.1-231F20?logo=apachekafka&logoColor=white)](https://kafka.apache.org/)
+[![Apache Paimon](https://img.shields.io/badge/Apache%20Paimon-1.4.2-0E8A16?logo=apache&logoColor=white)](https://paimon.apache.org/)
+[![Ollama](https://img.shields.io/badge/Ollama-qwen2.5--coder-000000?logo=ollama&logoColor=white)](https://ollama.com/)
+[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-monitoring-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+
 **Real-Time Credit Intelligence Pipeline with PyFlink, Local LLMs (Ollama), and Lakehouse Architecture.**
 
 **Finstream** is a streaming data engineering platform built for the ingestion, asynchronous cognitive enrichment, and risk classification of bank credit applications. The project simulates a bank's underwriting pipeline using real-world **German Credit Data**, orchestrating open-source LLMs locally without blocking the throughput of the messaging layer.
