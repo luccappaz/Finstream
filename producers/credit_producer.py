@@ -1,7 +1,8 @@
 import json
 import os
-import time
 import signal
+import time
+
 import pandas as pd
 from confluent_kafka import Producer
 

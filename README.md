@@ -1,16 +1,30 @@
 # Finstream 🚀
 
-**Pipeline de Inteligência de Crédito em Tempo Real com PyFlink, Local LLMs (Ollama) e Arquitetura Lakehouse.**
+**Real-Time Credit Intelligence Pipeline with PyFlink, Local LLMs (Ollama), and Lakehouse Architecture.**
 
-O **Finstream** é uma plataforma de engenharia de dados em streaming desenvolvida para a ingestão, enriquecimento cognitivo assíncrono e classificação de risco de crédito bancário. O projeto simula a esteira de análise de um banco utilizando dados reais do **German Credit Data**, orquestrando LLMs de código aberto localmente sem bloquear o throughput da aplicação de mensageria.
+**Finstream** is a streaming data engineering platform built for the ingestion, asynchronous cognitive enrichment, and risk classification of bank credit applications. The project simulates a bank's underwriting pipeline using real-world **German Credit Data**, orchestrating open-source LLMs locally without blocking the throughput of the messaging layer.
 
-O grande diferencial do projeto está no uso de **I/O Assíncrono (AsyncDataStream)** no Flink, permitindo que o pipeline consulte um modelo de linguagem local (como o **qwen2.5-coder**) via requisições HTTP sem travar os slots de computação do cluster distribuído.
+The project's key differentiator is the use of **Asynchronous I/O (`AsyncDataStream`)** in Flink, allowing the pipeline to query a local language model (such as **qwen2.5-coder**) over HTTP without stalling the compute slots of the distributed cluster.
 
 ---
 
-# 🏗️ Arquitetura do Sistema
+## 📑 Table of Contents
 
-A arquitetura separa de forma reativa a camada de geração de eventos, inferência cognitiva com LLM, auditoria transacional em tabelas Lakehouse e observabilidade em tempo real.
+- [Architecture](#️-system-architecture)
+- [Features](#-current-features)
+- [Tech Stack](#️-tech-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Data Validation & Exploration](#-data-validation--exploration)
+- [Monitoring with Prometheus](#-monitoring-with-prometheus)
+- [Sample Payload](#-sample-payload)
+- [License](#️-license)
+
+---
+
+## 🏗️ System Architecture
+
+The architecture reactively separates event generation, LLM-based cognitive inference, transactional auditing in Lakehouse tables, and real-time observability.
 
 ```mermaid
 graph TD
@@ -21,208 +35,221 @@ graph TD
     E -->|paimon-sink-submitter| F[Apache Paimon]
     F -->|ACID Snapshots| G[MinIO S3 Object Storage]
 
-    %% Camada de Monitoramento
-    C -.->|Métricas| H[Prometheus Engine]
+    %% Monitoring layer
+    C -.->|Metrics| H[Prometheus Engine]
     D -.->|Resource Monitoring| H
 ```
 
 ---
 
-# ✨ Funcionalidades Atuais
+## ✨ Current Features
 
-## 🧠 Inferência de LLM Assíncrona e Resiliente
+### 🧠 Asynchronous & Resilient LLM Inference
 
-- **Orquestração via AsyncFunction:** chamadas não bloqueantes para o motor local do Ollama utilizando `aiohttp` e controle estrito de concorrência (`capacity`) para evitar o estrangulamento do hardware executando em CPU.
+- **Orchestration via `AsyncFunction`:** non-blocking calls to the local Ollama engine using `aiohttp`, with strict concurrency control (`capacity`) to prevent hardware bottlenecks when running on CPU.
+- **Structured Prompt Engineering:** a parameterized prompt that forces the model to reply strictly in valid JSON, containing:
+  - `predicao` (`1` = Low Risk, `2` = High Risk);
+  - `justificativa` (the model's reasoning).
+- **Automatic Failure Handling:** dynamic exception capture (e.g. `TimeoutError`), sanitization of unexpected responses, and safe fallbacks to prevent the Flink cluster from crashing.
 
-- **Engenharia de Prompt Estruturada:** prompt parametrizado que força o modelo a responder estritamente em formato JSON válido, contendo:
-  - `predicao` (`1` para Baixo Risco, `2` para Alto Risco);
-  - `justificativa`.
+### 🏞️ Lakehouse Architecture (Paimon + MinIO)
 
-- **Tratamento Automático de Falhas:** captura dinâmica de exceções (como `TimeoutError`), higienização de respostas inesperadas e geração de fallbacks seguros para evitar a queda do cluster Flink.
+- **Transactional Snapshots:** the final topic is consumed by Flink SQL (`paimon-sink-submitter`) and continuously written to Apache Paimon, backed by MinIO.
+- **Built-in Time Travel:** ability to audit and roll back the state of analytical tables through automatic commits generated at each Flink checkpoint interval.
 
-## 🏞️ Arquitetura Lakehouse (Paimon + MinIO)
+### 📊 Streaming Observability (Prometheus)
 
-- **Snapshots Transacionais:** consumo do tópico final pelo Flink SQL (`paimon-sink-submitter`) e escrita contínua no Apache Paimon armazenado no MinIO.
+Collection and exposure of metrics such as:
 
-- **Time Travel Integrado:** capacidade de auditar e retroceder o estado das tabelas analíticas através dos commits automáticos gerados a cada intervalo de checkpoint do Flink.
-
-## 📊 Observabilidade de Streaming (Prometheus)
-
-Coleta e exposição de métricas como:
-
-- Consumer Lag do Kafka;
-- tamanho da fila de requisições pendentes do operador assíncrono (`queueSize`);
-- Heap Memory;
-- CPU Load;
-- métricas da JVM para monitoramento de gargalos.
+- Kafka consumer lag;
+- pending request queue size for the async operator (`queueSize`);
+- heap memory usage;
+- CPU load;
+- JVM metrics for bottleneck monitoring.
 
 ---
 
-# 🛠️ Stack Tecnológica
+## 🛠️ Tech Stack
 
-| Categoria              | Tecnologia                                  |
-| ---------------------- | ------------------------------------------- |
-| Linguagem Base         | Python 3.12+ (gerenciado via `uv`)          |
-| Processamento Stream   | Apache Flink 2.2 / PyFlink                  |
-| Modelos de Linguagem   | Ollama (`qwen2.5-coder:3b` / `qwen2.5:3b`)  |
-| Message Broker         | Apache Kafka 4.3.1                          |
-| Lakehouse Storage      | Apache Paimon 1.4.2 + MinIO (S3 API)        |
-| Ecossistema de Análise | JupyterLab (`pypaimon` + `duckdb`)          |
-| Monitoramento          | Prometheus Server (JMX/Prometheus Reporter) |
-| Orquestração           | Docker, Docker Compose e Makefile           |
+| Category               | Technology                                   |
+| ----------------------- | --------------------------------------------- |
+| Base Language            | Python 3.12+ (managed via `uv`)              |
+| Stream Processing        | Apache Flink 2.2 / PyFlink                    |
+| Language Models          | Ollama (`qwen2.5-coder:3b` / `qwen2.5:3b`)   |
+| Message Broker           | Apache Kafka 4.3.1                            |
+| Lakehouse Storage        | Apache Paimon 1.4.2 + MinIO (S3 API)          |
+| Analytics Ecosystem      | JupyterLab (`pypaimon` + `duckdb`)           |
+| Monitoring               | Prometheus Server (JMX/Prometheus Reporter)   |
+| Orchestration            | Docker, Docker Compose, and Makefile          |
 
 ---
 
-# 📁 Estrutura do Projeto
+## 📁 Project Structure
 
 ```text
 finstream/
 ├── processors/
-│   └── llm_flink_job.py          # Script principal do PyFlink
+│   └── llm_flink_job.py          # Main PyFlink script
 │
 ├── producers/
-│   ├── credit_producer.py        # Produtor contínuo do dataset
-│   └── german.data               # Dataset German Credit
+│   ├── credit_producer.py        # Continuous dataset producer
+│   └── german.data               # German Credit dataset
 │
 ├── sql/
-│   ├── init_catalog.sql          # Inicialização do catálogo Paimon
-│   └── scored_to_paimon.sql      # Pipeline Kafka → Paimon
+│   ├── init_catalog.sql          # Paimon catalog initialization
+│   └── scored_to_paimon.sql      # Kafka → Paimon pipeline
 │
 ├── docker/
 │   └── flink/
-│       └── Dockerfile            # Flink customizado com conectores
+│       └── Dockerfile            # Custom Flink image with connectors
 │
 ├── prometheus/
-│   └── prometheus.yml            # Configuração do Prometheus
+│   └── prometheus.yml            # Prometheus configuration
 │
-├── .env                          # Configuração do modelo LLM
-├── docker-compose.yaml           # Infraestrutura completa
-└── Makefile                      # Comandos auxiliares
+├── .env                          # LLM model configuration
+├── docker-compose.yaml           # Full infrastructure
+└── Makefile                      # Helper commands
 ```
 
 ---
 
-# 🚀 Executando o Ambiente
+## 🚀 Getting Started
 
-## 1. Configure o modelo LLM
+### 1. Configure the LLM model
 
-Crie um arquivo `.env` na raiz do projeto:
+Create a `.env` file at the project root:
 
 ```env
 OLLAMA_MODEL=qwen2.5-coder:3b
 ```
 
----
-
-## 2. Inicialize a infraestrutura
+### 2. Start the infrastructure
 
 ```bash
-# Compila e sobe toda a infraestrutura
+# Build and start the full infrastructure
 make
 
-# Verifica os containers
+# Check running containers
 make ps
 ```
 
-> **Nota:** o container `ollama-pull` aguarda a inicialização do Ollama, faz automaticamente o download do modelo especificado no `.env` e somente depois libera a submissão do job do Flink.
+> **Note:** the `ollama-pull` container waits for Ollama to start, automatically downloads the model specified in `.env`, and only then releases the Flink job submission.
 
 ---
 
-# 🔍 Validação e Consulta dos Dados
+## 🔍 Data Validation & Exploration
 
-# 🔍 Validação e Inspeção dos Dados
+### Flink Web UI
 
-## Flink Web UI
-
-Acompanhe a execução do pipeline e o processamento em tempo real através da interface do Flink:
+Track pipeline execution and real-time processing through the Flink dashboard:
 
 ```
 http://localhost:8081
 ```
 
----
+*Flink Dashboard showing the `finstream-llm-scoring-async` and Paimon sink jobs running.*
 
-## Análise dos Dados no Lakehouse
+![Flink Dashboard](docs/images/flink-dashboard.png)
 
-Após o pipeline processar as aplicações de crédito, acesse o **JupyterLab** para explorar os dados armazenados no Apache Paimon utilizando DuckDB.
+### Lakehouse Data Exploration
 
-Abra no navegador:
+Once the pipeline has processed the credit applications, open **JupyterLab** to explore the data stored in Apache Paimon using DuckDB and pandas:
 
 ```
 http://0.0.0.0:8888
 ```
 
-Em seguida, execute o notebook:
+Then run the notebook:
 
 ```
 inspection.ipynb
 ```
 
-O notebook já está configurado para conectar ao Lakehouse e permite:
+The notebook is pre-configured to connect to the Lakehouse and lets you:
 
-- Consultar os dados armazenados no Apache Paimon;
-- Explorar as predições geradas pelo LLM;
-- Comparar a classificação prevista com o target real;
-- Realizar análises exploratórias utilizando DuckDB.
+- Query the data stored in Apache Paimon;
+- Explore the predictions generated by the LLM;
+- Compare predicted classification against the real target;
+- Run exploratory analysis with DuckDB and pandas.
+
+*Querying the scored Paimon table with pandas inside JupyterLab — comparing `predicao` against `target_real`, with the LLM's `justificativa` for each application.*
+
+![JupyterLab querying Paimon with pandas](docs/images/jupyterlab-paimon-query.png)
 
 ---
 
-# 📦 Exemplo de Payload
+## 📊 Monitoring with Prometheus
+
+Web interface:
+
+```
+http://localhost:9090
+```
+
+*Prometheus graph view showing `flink_taskmanager_Status_JVM_Memory_Heap_Used` over time.*
+
+![Prometheus dashboard](docs/images/prometheus-dashboard.png)
+
+Useful queries:
+
+**Async queue size**
+
+```text
+{__name__=~".*queueSize.*"}
+```
+
+or
+
+```text
+flink_taskmanager_job_task_operator_AvaliacaoCreditoLLM_queueSize
+```
+
+**Kafka consumer lag**
+
+```text
+flink_taskmanager_job_task_operator_KafkaSourceReader_KafkaConsumer_records_lag_max
+```
+
+**JVM heap usage**
+
+```text
+flink_taskmanager_Status_JVM_Memory_Heap_Used
+```
+
+### Kafka UI
+
+Inspect topics, partitions, and messages flowing through the pipeline:
+
+```
+http://localhost:8080
+```
+
+*Kafka UI — `credit_applications_raw` topic, with the semantically-translated payload produced from `german.data`.*
+
+![Kafka UI - raw topic](docs/images/kafka-ui-raw-topic.png)
+
+*Kafka UI — `credit_applications_scored` topic, with the LLM's `predicao` and `justificativa` already attached to each message.*
+
+![Kafka UI - scored topic](docs/images/kafka-ui-scored-topic.png)
+
+---
+
+## 📦 Sample Payload
 
 ```json
 {
   "id_cliente": 42,
   "target_real": 2,
   "predicao": 2,
-  "justificativa": "Saldo em conta corrente negativo e histórico com atrasos passados superam o bom propósito do empréstimo, elevando o risco de inadimplência.",
+  "justificativa": "Negative checking account balance and a history of past delays outweigh the good loan purpose, increasing default risk.",
   "modelo": "qwen2.5-coder:3b"
 }
 ```
 
 ---
 
-# 📊 Métricas no Prometheus
+## 🛡️ License
 
-Interface Web:
+This project is licensed under the **MIT License**.
 
-```
-http://localhost:9090
-```
-
-Consultas úteis:
-
-### Tamanho da fila assíncrona
-
-```text
-{__name__=~".*queueSize.*"}
-```
-
-ou
-
-```text
-flink_taskmanager_job_task_operator_AvaliacaoCreditoLLM_queueSize
-```
-
----
-
-### Kafka Consumer Lag
-
-```text
-flink_taskmanager_job_task_operator_KafkaSourceReader_KafkaConsumer_records_lag_max
-```
-
----
-
-### Uso de Heap da JVM
-
-```text
-flink_taskmanager_Status_JVM_Memory_Heap_Used
-```
-
----
-
-# 🛡️ Licença
-
-Este projeto está licenciado sob a **MIT License**.
-
-Consulte o arquivo **LICENSE** para mais informações.
+See the **LICENSE** file for more information.
