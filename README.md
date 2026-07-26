@@ -149,7 +149,7 @@ http://localhost:8081
 
 *Flink Dashboard showing the `finstream-llm-scoring-async` and Paimon sink jobs running.*
 
-![Flink Dashboard](docs/images/flink-dashboard.png)
+![Flink Dashboard](assets/apache-flink.png)
 
 ### Lakehouse Data Exploration
 
@@ -174,7 +174,7 @@ The notebook is pre-configured to connect to the Lakehouse and lets you:
 
 *Querying the scored Paimon table with pandas inside JupyterLab — comparing `predicao` against `target_real`, with the LLM's `justificativa` for each application.*
 
-![JupyterLab querying Paimon with pandas](docs/images/jupyterlab-paimon-query.png)
+![JupyterLab querying Paimon with pandas](assets/jupyterlab-paimon-query.png)
 
 ---
 
@@ -188,7 +188,7 @@ http://localhost:9090
 
 *Prometheus graph view showing `flink_taskmanager_Status_JVM_Memory_Heap_Used` over time.*
 
-![Prometheus dashboard](docs/images/prometheus-dashboard.png)
+![Prometheus dashboard](assets/prometheus-dashboard.png)
 
 Useful queries:
 
@@ -226,11 +226,11 @@ http://localhost:8080
 
 *Kafka UI — `credit_applications_raw` topic, with the semantically-translated payload produced from `german.data`.*
 
-![Kafka UI - raw topic](docs/images/kafka-ui-raw-topic.png)
+![Kafka UI - raw topic](assets/kafka-ui-raw-topic.png)
 
 *Kafka UI — `credit_applications_scored` topic, with the LLM's `predicao` and `justificativa` already attached to each message.*
 
-![Kafka UI - scored topic](docs/images/kafka-ui-scored-topic.png)
+![Kafka UI - scored topic](assets/kafka-ui-scored-topic.png)
 
 ---
 
